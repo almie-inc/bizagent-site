@@ -70,6 +70,76 @@ function pickDmg(assets: Asset[]): Asset | undefined {
 	return assets.find((a) => a.name.endsWith('.dmg'));
 }
 
+const AHA_SCENES = [
+	{
+		num: '01',
+		title: '会議が終わったら、議事録もタスクも、できている。',
+		body: '録音から文字起こしまで自動。会議が終わった瞬間、要点・決定事項・ToDoがそのままタスクボードに並びます。',
+		image: '/screenshots/scene1.png',
+		alt: 'オンライン会議が終了し、AIが議事録を文字起こしている画面',
+	},
+	{
+		num: '02',
+		title: 'AIが、並列で、全部やる。',
+		body: 'タスクボード上で複数のClaude Codeが同時に走り、見積書・スライド・提案資料を並列に進めます。あなたは結果を見届けるだけ。',
+		image: '/screenshots/scene3.png',
+		alt: 'BizAgentのカンバンボード上でAIが複数タスクを並列実行している画面',
+	},
+	{
+		num: '03',
+		title: 'もう、終わってる。',
+		body: '気づけばカンバンの完了列に、成果物がそろっている。1日4タスク・2時間削減・効率+340%の実例も。',
+		image: '/screenshots/scene4.png',
+		alt: 'タスクが完了しKPIダッシュボードに数値が表示される画面',
+	},
+];
+
+const COMPARISON_ROWS: Array<{
+	label: string;
+	values: [string, string, string, string, string];
+	highlight?: boolean;
+}> = [
+	{
+		label: '主要ターゲット',
+		values: ['ビジネスパーソン', '開発者', 'エンジニア', 'ビジネスパーソン', 'エンタープライズ'],
+	},
+	{
+		label: 'Claude Code起動',
+		values: ['ワンクリック', 'CLI設定要', '別途設定', 'なし', 'なし'],
+		highlight: true,
+	},
+	{
+		label: 'タスクカンバン',
+		values: ['標準搭載', 'なし', 'なし', '限定的', '別アプリ'],
+		highlight: true,
+	},
+	{
+		label: 'ファイル/PJ文脈管理',
+		values: ['標準搭載', 'なし', 'プロジェクト単位', 'なし', 'Drive'],
+	},
+	{
+		label: 'ローカル実行',
+		values: ['◯', '◯', '◯', '✕（クラウド）', '✕（クラウド）'],
+	},
+	{
+		label: 'VS Code拡張互換',
+		values: ['◯', '✕', '◯', '✕', '✕'],
+	},
+	{
+		label: '月額料金',
+		values: ['無料', '$20〜200', '$20〜200', '$25〜250', '$14〜22'],
+		highlight: true,
+	},
+];
+
+const COMPARISON_COLS = [
+	'BizAgent',
+	'Claude Code単体',
+	'Cursor / Windsurf',
+	'Genspark',
+	'GWS + Gemini',
+];
+
 export default async function Home() {
 	const [releases, latestFromApi] = await Promise.all([fetchReleases(), fetchLatestRelease()]);
 	const sortedHistory = [...releases].sort((a, b) => compareSemverDesc(a.tag_name, b.tag_name));
@@ -83,10 +153,9 @@ export default async function Home() {
 					<span className="brand-dot" aria-hidden />
 					BizAgent
 				</div>
-				<h1>会話しているだけで、仕事が終わる。</h1>
+				<h1>AIに丸投げしたら、仕事が終わる。</h1>
 				<p className="lead">
-					BizAgentは、Claude Code を最大活用するためのビジネスパーソン向けAIエディタ。
-					議事録もタスクも資料作成も、AIとの会話だけで進みます。
+					ターミナルもコードも要らない。議事録・タスク・資料作成を、ビジネスパーソンのまま Claude Code に任せられる macOS 向け AI エディタです。
 				</p>
 				<div className="cta-row">
 					<a className="btn-primary" href={LATEST_DOWNLOAD_URL}>
@@ -105,6 +174,48 @@ export default async function Home() {
 				</div>
 			</section>
 
+			<section className="promo">
+				<div className="container">
+					<div className="promo-frame">
+						<video
+							className="promo-video"
+							src="/bizagent-promo.mp4"
+							autoPlay
+							muted
+							loop
+							playsInline
+							preload="metadata"
+							poster="/screenshots/scene4.png"
+						/>
+					</div>
+					<p className="promo-caption">会議が終わったら、もう終わってる。 — 15秒で見るBizAgent</p>
+				</div>
+			</section>
+
+			<section className="aha">
+				<div className="container">
+					<h2>AIに丸投げするって、こういうこと。</h2>
+					<p className="section-lead">
+						BizAgentの中で起きる「3つのアハ体験」。会議の後にあなたが何もしなくても、ビジネスタスクが進みはじめます。
+					</p>
+					<div className="aha-grid">
+						{AHA_SCENES.map((s) => (
+							<article key={s.num} className="aha-item">
+								<div className="aha-image">
+									{/* eslint-disable-next-line @next/next/no-img-element */}
+									<img src={s.image} alt={s.alt} loading="lazy" />
+								</div>
+								<div className="aha-text">
+									<span className="aha-num">{s.num}</span>
+									<h3>{s.title}</h3>
+									<p>{s.body}</p>
+								</div>
+							</article>
+						))}
+					</div>
+				</div>
+			</section>
+
 			<section className="features">
 				<div className="container">
 					<h2>ビジネスパーソンのためのAIエディタ</h2>
@@ -116,18 +227,69 @@ export default async function Home() {
 							title="Claude Code をワンクリックで"
 							description="ターミナル設定やコマンド入力なしで Claude Code を起動。話しかけるだけで議事録要約・資料作成・タスク整理が進みます。"
 							icon={<IconBolt />}
+							image="/screenshots/scene1.png"
+							imageAlt="Claude Codeがワンクリックで起動する画面"
 						/>
 						<Feature
 							title="ビジネスタスクに最適化"
 							description="タスクカンバン・ファイルボックス・スキル管理を標準搭載。プロジェクト・人物・ドキュメントを一元管理し、AIに渡せる文脈として整います。"
 							icon={<IconLayout />}
+							image="/screenshots/scene3.png"
+							imageAlt="タスクカンバンとファイルボックスのUI"
 						/>
 						<Feature
 							title="VS Code 互換で迷わない"
 							description="VS Code (Code-OSS) をベースに、初心者向けにUIを簡略化。拡張機能はそのまま使えて、必要になれば「開発者モード」でフルUIに切替可能。"
 							icon={<IconText />}
+							image="/screenshots/scene2.png"
+							imageAlt="VS Code互換のシンプルモードUI"
 						/>
 					</div>
+				</div>
+			</section>
+
+			<section className="comparison">
+				<div className="container">
+					<h2>他のAIエディタ・AIエージェントと、何が違うか。</h2>
+					<p className="section-lead">
+						「ビジネスパーソンが、ローカルで、Claude Codeをワンクリックで使える」 — この3つを満たすのは、いまのところBizAgentだけです。
+					</p>
+					<div className="comparison-table-wrap">
+						<table className="comparison-table">
+							<thead>
+								<tr>
+									<th scope="col" className="comp-th-leading">観点</th>
+									{COMPARISON_COLS.map((col, i) => (
+										<th
+											key={col}
+											scope="col"
+											className={i === 0 ? 'comp-th-self' : ''}
+										>
+											{col}
+										</th>
+									))}
+								</tr>
+							</thead>
+							<tbody>
+								{COMPARISON_ROWS.map((row) => (
+									<tr key={row.label}>
+										<th scope="row">{row.label}</th>
+										{row.values.map((v, i) => (
+											<td
+												key={i}
+												className={`${i === 0 ? 'comp-td-self' : ''} ${row.highlight && i === 0 ? 'comp-highlight' : ''}`}
+											>
+												{v}
+											</td>
+										))}
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+					<p className="comparison-foot">
+						※ 価格は2026年5月時点の各社公開情報に基づく月額目安。BizAgentは本体無料で、Claude API（または Claude Pro $20/月）が別途必要です。
+					</p>
 				</div>
 			</section>
 
@@ -199,13 +361,23 @@ function Feature({
 	title,
 	description,
 	icon,
+	image,
+	imageAlt,
 }: {
 	title: string;
 	description: string;
 	icon: React.ReactNode;
+	image?: string;
+	imageAlt?: string;
 }) {
 	return (
 		<div className="feature">
+			{image ? (
+				<div className="feature-image">
+					{/* eslint-disable-next-line @next/next/no-img-element */}
+					<img src={image} alt={imageAlt ?? ''} loading="lazy" />
+				</div>
+			) : null}
 			<div className="feature-icon" aria-hidden>
 				{icon}
 			</div>
