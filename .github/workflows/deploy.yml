@@ -54,14 +54,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # firebase-tools は GOOGLE_APPLICATION_CREDENTIALS を **サービスアカウント鍵形式しか
+      # 解釈できず**、WIF が書き出す external_account 形式では
+      # 「Failed to authenticate, have you run firebase login?」で落ちる（実際に踏んだ）。
+      # そのため SA のアクセストークンを直接受け取って渡す。
       - id: auth
         uses: google-github-actions/auth@v2
         with:
           project_id: bizagent-site
           workload_identity_provider: projects/397307101038/locations/global/workloadIdentityPools/github/providers/bizagent-site-repo
           service_account: gh-hosting-deploy@bizagent-site.iam.gserviceaccount.com
+          token_format: access_token
 
       - name: Deploy to Firebase Hosting
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: npx --yes firebase-tools@13 deploy --only hosting --project bizagent-site --non-interactive
 
       # 「デプロイ成功」と「表示が変わった」は別。焼き込みが効いているか実際に見る
