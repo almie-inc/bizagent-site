@@ -1,0 +1,77 @@
+# HP（https://bizagent-site.web.app）をビルドして Firebase Hosting へデプロイする。
+#
+# **なぜ自動化が要るか**: このサイトは Next.js の static export で、`app/page.tsx` が
+# ビルド時に GitHub Releases API を叩いて最新バージョンを取得し、HTML に焼き込む。
+# つまり「リリースしただけ」では HP の表示は永遠に変わらず、手で再デプロイするまで
+# 古いままになる。実際 v0.4.1(2026-07-20) の表示のまま6週間放置され、その間に
+# v0.4.2〜v0.4.19 が出ていた。
+#
+# 認証は鍵レス（Workload Identity 連携）。bizagent-site には組織ポリシー
+# `iam.disableServiceAccountKeyCreation` が効いていてSAキーを作れないため、
+# GitHub の OIDC トークンで SA を借用する。付与しているのは
+# roles/firebasehosting.admin と roles/firebase.viewer だけ。
+name: Deploy site
+
+on:
+  # リリース公開に連動（BizAgent-wrapper 側から repository_dispatch を投げる）
+  repository_dispatch:
+    types: [release-published]
+  # コンテンツを更新したとき
+  push:
+    branches: [main]
+  # 保険: 連動が落ちても1日以内には最新版に追いつく
+  # 毎日 07:13 JST（正時は混むのでずらす）
+  schedule:
+    - cron: '13 22 * * *'
+  workflow_dispatch:
+
+# デプロイは同時に走らせない。後発を優先し、進行中は取り消す
+concurrency:
+  group: deploy-site
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write # Workload Identity 連携に必須
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Releases API は未認証だと 60req/h で絞られる。ビルドが失敗すると
+      # 「最新バージョン」が空欄のまま公開されてしまうのでトークンを渡す
+      - name: Build
+        run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: bizagent-site
+          workload_identity_provider: projects/397307101038/locations/global/workloadIdentityPools/github/providers/bizagent-site-repo
+          service_account: gh-hosting-deploy@bizagent-site.iam.gserviceaccount.com
+
+      - name: Deploy to Firebase Hosting
+        run: npx --yes firebase-tools@13 deploy --only hosting --project bizagent-site --non-interactive
+
+      # 「デプロイ成功」と「表示が変わった」は別。焼き込みが効いているか実際に見る
+      - name: Verify published version
+        run: |
+          sleep 10
+          html=$(curl -sS "https://bizagent-site.web.app/?cb=$(date +%s)" -H 'Cache-Control: no-cache')
+          shown=$(printf '%s' "$html" | grep -o '最新バージョン: <strong>[^<]*</strong>' | head -1)
+          echo "HP表示: ${shown:-（取得できず）}"
+          if [ -z "$shown" ]; then
+            echo "::error::最新バージョンの表示を取得できませんでした。ビルド時の Releases API 取得に失敗している可能性があります"
+            exit 1
+          fi

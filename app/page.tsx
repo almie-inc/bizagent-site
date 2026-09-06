@@ -18,10 +18,26 @@ type Release = {
 	draft: boolean;
 };
 
+/**
+ * GitHub API のヘッダ。
+ *
+ * 未認証だと **IP あたり 60req/h** で、CI の共有ランナーでは簡単に枯れる。
+ * 枯れるとリリース一覧が空のまま静的HTMLに焼き込まれ、「最新バージョン」が
+ * 消えた状態で公開されてしまう。CI では GITHUB_TOKEN を渡して 1000req/h にする
+ * （対象は public リポなので読み取りに追加の権限は要らない）。
+ */
+function githubHeaders(): HeadersInit {
+	const token = process.env.GITHUB_TOKEN;
+	return {
+		Accept: 'application/vnd.github+json',
+		...(token ? { Authorization: `Bearer ${token}` } : {}),
+	};
+}
+
 async function fetchReleases(): Promise<Release[]> {
 	try {
 		const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=20`, {
-			headers: { Accept: 'application/vnd.github+json' },
+			headers: githubHeaders(),
 			next: { revalidate: 3600 },
 		});
 		if (!res.ok) return [];
@@ -35,7 +51,7 @@ async function fetchReleases(): Promise<Release[]> {
 async function fetchLatestRelease(): Promise<Release | null> {
 	try {
 		const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-			headers: { Accept: 'application/vnd.github+json' },
+			headers: githubHeaders(),
 			next: { revalidate: 3600 },
 		});
 		if (!res.ok) return null;
